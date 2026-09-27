@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Swap the live ISO's offline-only pacman.conf for the online config of the
+# channel this ISO was built from (stable, rc, or edge), so a rescue session can
+# install tools and update the agents.
+
+set -euo pipefail
+
+mirror=$(cat /root/omarchy_mirror 2>/dev/null || echo stable)
+config=/usr/share/omarchy-rescue/pacman-online-$mirror.conf
+[[ -f $config ]] || config=/usr/share/omarchy-rescue/pacman-online-stable.conf
+
+install -m 0644 "$config" /etc/pacman.conf

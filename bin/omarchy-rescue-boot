@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Boot the newest Omarchy Rescue ISO (or the one given) in a VM with
+# omarchy-iso's own QEMU helper. Needs qemu and edk2-ovmf on the host.
+
+set -euo pipefail
+
+ROOT=$(realpath "${BASH_SOURCE[0]%/*}/..")
+
+if [[ $# -eq 0 || $1 == -* ]]; then
+  iso=$(\ls -t "$ROOT"/release/*.iso 2>/dev/null | head -n1 || true)
+  [[ -n $iso ]] || { echo "No ISO in $ROOT/release; run bin/omarchy-rescue-make first." >&2; exit 1; }
+  set -- "$iso" "$@"
+fi
+
+exec "$ROOT/omarchy-iso/bin/omarchy-iso-boot" "$@"

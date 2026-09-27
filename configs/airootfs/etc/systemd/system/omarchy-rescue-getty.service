@@ -1,0 +1,22 @@
+# Fallback for omarchy-rescue-console.service: the stock autologin console on
+# tty1, used when kmscon cannot drive the display.
+
+[Unit]
+Description=Omarchy Rescue fallback console on tty1
+After=systemd-user-sessions.service plymouth-quit-wait.service
+Conflicts=omarchy-rescue-console.service
+
+[Service]
+ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin root - linux
+Type=idle
+Restart=always
+RestartSec=0
+UtmpIdentifier=tty1
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+IgnoreSIGPIPE=no
+SendSIGHUP=yes

@@ -1,0 +1,14 @@
+# The live ISO's pacman only knows the offline installer mirror. A rescue
+# session wants the real repos, so tools and agent updates can be installed.
+
+[Unit]
+Description=Point pacman at the online repos for Omarchy Rescue
+ConditionKernelCommandLine=omarchy.rescue
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/omarchy-rescue-online
+
+[Install]
+WantedBy=multi-user.target

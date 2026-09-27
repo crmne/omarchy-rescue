@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Serve the shared "rescue" tmux session over the local network with ttyd, so a
+# phone on the same network can drive this console: open sign-in links, paste
+# codes back, and follow along with an agent from the couch.
+#
+# The session is a root shell, so the address carries a random token and only
+# that exact address works. It is plain HTTP on the local network; stop sharing
+# with `omarchy-rescue-share stop` when done.
+
+set -euo pipefail
+
+PORT=7681
+UNIT=omarchy-rescue-share
+TOKEN_FILE=/run/omarchy-rescue/share-token
+
+stop_sharing() {
+  systemctl stop "$UNIT" 2>/dev/null || true
+  rm -f "$TOKEN_FILE"
+  echo "Stopped sharing this console."
+}
+
+lan_address() {
+  ip -4 route get 1.1.1.1 2>/dev/null | awk '{ for (i = 1; i < NF; i++) if ($i == "src") { print $(i + 1); exit } }'
+}
+
+case ${1:-start} in
+stop)
+  stop_sharing
+  exit 0
+  ;;
+start) ;;
+*)
+  echo "Usage: omarchy-rescue-share [start|stop]" >&2
+  exit 1
+  ;;
+esac
+
+address=$(lan_address)
+if [[ -z $address ]]; then
+  gum style --foreground 3 "No network connection yet. Connect Wi-Fi with impala, or plug in Ethernet."
+  exit 1
+fi
+
+if ! systemctl is-active -q "$UNIT"; then
+  mkdir -p "${TOKEN_FILE%/*}"
+  token=$(openssl rand -hex 12)
+  systemd-run --quiet --collect --unit="$UNIT" \
+    ttyd --port "$PORT" --base-path "/$token" --writable --check-origin --max-clients 3 \
+    --client-option titleFixed="Omarchy Rescue" \
+    --client-option fontSize=14 \
+    --client-option disableLeaveAlert=true \
+    --client-option 'theme={"background":"#1a1b26","foreground":"#c0caf5","cursor":"#c0caf5"}' \
+    tmux -f /usr/share/omarchy-rescue/tmux.conf new-session -A -s rescue
+  echo "$token" >"$TOKEN_FILE"
+fi
+
+url="http://$address:$PORT/$(<"$TOKEN_FILE")/"
+
+echo
+qrencode -t ansiutf8 -m 2 "$url"
+echo
+gum style --foreground 4 "Scan with a phone on the same network, or open:" "$url"
+gum style --foreground 3 "Anyone with this link gets a root shell. Stop with: omarchy-rescue-share stop"

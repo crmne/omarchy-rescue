@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Build the Omarchy Rescue ISO: a fresh copy of the pinned omarchy-iso checkout,
+# the rescue layer applied on top, then omarchy-iso's own build. Arguments pass
+# straight through to omarchy-iso-make (--edge, --rc, --no-cache, ...).
+#
+# Unlike omarchy-iso-make, this never mounts the host's pacman cache into the
+# build container. Upstream mounts it and then has to wipe it with sudo before
+# every build, because a cached file can differ from the Omarchy mirror's copy
+# under the same name. Leaving it out needs no sudo and leaves the host alone;
+# the offline mirror still persists in ~/.cache/omarchy between builds.
+
+set -euo pipefail
+
+ROOT=$(realpath "${BASH_SOURCE[0]%/*}/..")
+BUILD=$ROOT/build/omarchy-iso
+RELEASE=$ROOT/release
+
+args=(--no-boot-offer --keep-pkg-cache)
+for arg in "$@"; do
+  case $arg in
+  --keep-pkg-cache | --no-boot-offer) ;;
+  *) args+=("$arg") ;;
+  esac
+done
+
+git -C "$ROOT" submodule update --init --recursive
+
+rm -rf "$BUILD"
+mkdir -p "${BUILD%/*}" "$RELEASE"
+git clone --quiet "$ROOT/omarchy-iso" "$BUILD"
+git -C "$BUILD" -c protocol.file.allow=always submodule update --init --quiet \
+  --reference "$ROOT/omarchy-iso/archiso"
+
+"$ROOT/builder/apply-rescue.sh" "$BUILD"
+
+host_cache='  DOCKER_ARGS+=(-v "/var/cache/pacman/pkg:/var/cache/pacman/pkg")'
+grep -qxF "$host_cache" "$BUILD/bin/omarchy-iso-make" || {
+  echo "omarchy-iso-make no longer mounts the host pacman cache the way this expects" >&2
+  exit 1
+}
+HOST_CACHE=$host_cache awk '$0 == ENVIRON["HOST_CACHE"] { print "  :"; next } { print }' \
+  "$BUILD/bin/omarchy-iso-make" >"$BUILD/bin/omarchy-iso-make.new"
+mv "$BUILD/bin/omarchy-iso-make.new" "$BUILD/bin/omarchy-iso-make"
+chmod +x "$BUILD/bin/omarchy-iso-make"
+bash -n "$BUILD/bin/omarchy-iso-make"
+
+(cd "$BUILD" && ./bin/omarchy-iso-make "${args[@]}")
+
+iso=$(\ls -t "$BUILD"/release/*.iso | head -n1)
+mv -f "$iso" "$RELEASE/"
+echo
+echo "Built $RELEASE/${iso##*/}"

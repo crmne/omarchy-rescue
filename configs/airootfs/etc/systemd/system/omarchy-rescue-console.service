@@ -1,0 +1,26 @@
+# The rescue console: kmscon on tty1, so the agents get real fonts, truecolor,
+# and Unicode without a graphical session. Modeled on kmscon's own
+# kmsconvt@.service. Only the "Omarchy Rescue" boot entry (omarchy.rescue=kms)
+# starts it; if kmscon cannot start, the plain autologin console takes over.
+
+[Unit]
+Description=Omarchy Rescue console on tty1
+After=systemd-user-sessions.service
+After=plymouth-quit-wait.service
+After=systemd-vconsole-setup.service
+Before=getty.target
+OnFailure=omarchy-rescue-getty.service
+IgnoreOnIsolate=yes
+ConditionKernelCommandLine=omarchy.rescue=kms
+ConditionPathExists=/dev/tty0
+
+[Service]
+ExecStart=/usr/bin/kmscon --vt=tty1 --no-switchvt --login -- /usr/bin/login -f root
+UtmpIdentifier=tty1
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+
+[Install]
+WantedBy=getty.target

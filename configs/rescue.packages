@@ -1,0 +1,75 @@
+# Installed into the live environment on top of the stock Omarchy ISO, which
+# already carries Arch's releng rescue set (ddrescue, testdisk, smartmontools,
+# nvme-cli, fsarchiver, partclone, clonezilla, btrfs-progs, cryptsetup, lvm2,
+# mdadm, parted, gptfdisk, nmap, tcpdump, rsync, tmux, and more).
+
+# Agents
+claude-code
+openai-codex-bin
+opencode
+
+# Console: kmscon for real fonts and truecolor without a desktop, ttyd and
+# qrencode to hand the session to a phone, impala for Wi-Fi over iwd
+kmscon
+ttf-jetbrains-mono-nerd
+ttyd
+qrencode
+impala
+
+# The Omarchy shell the live root already gets from omarchy-settings
+starship
+zoxide
+fzf
+eza
+bat
+
+# Disks, filesystems, and boot repair
+chntpw
+os-prober
+sbctl
+limine
+wimlib
+sleuthkit
+foremost
+
+# Hardware diagnosis
+lshw
+hwinfo
+inxi
+lm_sensors
+i2c-tools
+memtester
+stress-ng
+fastfetch
+
+# System inspection
+btop
+htop
+iotop
+lsof
+strace
+ncdu
+gdu
+
+# Backup and data transfer
+rclone
+restic
+borg
+7zip
+zip
+unzip
+wget
+
+# Network diagnosis
+mtr
+iperf3
+socat
+whois
+
+# For agents and humans working in the shell
+git
+github-cli
+neovim
+ripgrep
+fd
+python

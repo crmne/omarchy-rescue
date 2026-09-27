@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+
+# Show the last link printed in a tmux pane as a QR code, so a phone can open
+# an agent's sign-in page without anyone typing a 300-character URL. Bound to
+# C-Space u in the rescue tmux session.
+
+import re
+import shutil
+import subprocess
+import sys
+
+URL = re.compile(r"https?://[^\s\"'<>│┃|]+")
+
+
+def tmux(*args):
+    return subprocess.run(["tmux", *args], check=True, capture_output=True, text=True).stdout
+
+
+def pane_text(pane):
+    target = ["-t", pane] if pane else []
+    width = int(tmux("display-message", "-p", *target, "#{pane_width}").strip())
+    # -J rejoins lines the terminal soft-wrapped at the pane edge.
+    lines = tmux("capture-pane", "-p", "-J", "-S", "-1000", *target).splitlines()
+
+    # Some programs hard-wrap long links themselves. A line that runs to the
+    # pane edge and ends mid-link continues on the next line, so glue those
+    # back together before looking for links.
+    text = ""
+    previous = ""
+    for line in lines:
+        link_so_far = text.rsplit("\n", 1)[-1].rstrip().split(" ")[-1]
+        glued = (
+            width - 2 <= len(previous.rstrip()) <= width
+            and URL.search(link_so_far)
+            and line[:1] not in ("", " ")
+        )
+        text += line if glued else "\n" + line
+        previous = line
+    return text
+
+
+def main():
+    pane = sys.argv[1] if len(sys.argv) > 1 else ""
+    links = URL.findall(pane_text(pane))
+    if not links:
+        print("No link on screen yet. Run the sign-in command first, then press C-Space u again.")
+        input("\nPress Enter to close.")
+        return
+
+    link = links[-1].rstrip(".,;:)]}")
+    qr = subprocess.run(
+        ["qrencode", "-t", "ansiutf8", "-m", "1", "-l", "L", link],
+        check=True, capture_output=True, text=True,
+    ).stdout
+
+    columns, rows = shutil.get_terminal_size()
+    qr_lines = qr.splitlines()
+    qr_width = len(re.sub(r"\x1b\[[0-9;]*m", "", qr_lines[0])) if qr_lines else 0
+
+    if qr_width > columns or len(qr_lines) > rows:
+        print("This link is too long for a QR code on this screen.")
+        print("Run omarchy-rescue-share to open this console on your phone instead,")
+        print("then tap the link there.\n")
+        print(link)
+        input("\nPress Enter to close.")
+        return
+
+    # Every row goes to the code when it needs them all; the hint only shows
+    # when there's room for it.
+    print(qr, end="")
+    if len(qr_lines) + 2 <= rows:
+        print("\nScan with your phone. Press Enter to close.", end="", flush=True)
+    input()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Sign in to an agent from a console with no browser. Each agent prints a link
+# to open on another device: press C-Space u to show it as a QR code, or run
+# omarchy-rescue-share first and finish the whole thing on your phone, where
+# the code the agent asks for can be pasted back.
+
+set -euo pipefail
+
+agent=${1:-}
+if [[ -z $agent ]]; then
+  agent=$(gum choose --header "Sign in to which agent?" claude codex opencode)
+fi
+
+if ! curl -s -m 5 -o /dev/null https://pkgs.omarchy.org; then
+  gum style --foreground 3 "No internet connection yet. Connect Wi-Fi with impala, or plug in Ethernet."
+  exit 1
+fi
+
+gum style --foreground 4 \
+  "A sign-in link will appear below. Press C-Space u to show it as a QR code," \
+  "or open this console on your phone with omarchy-rescue-share to paste codes back."
+echo
+
+case $agent in
+claude) claude auth login ;;
+codex) codex login --device-auth ;;
+opencode) opencode auth login ;;
+*)
+  echo "Unknown agent: $agent (expected claude, codex, or opencode)" >&2
+  exit 1
+  ;;
+esac
+
+echo
+if gum confirm "Start $agent now?"; then
+  exec "$agent"
+fi
