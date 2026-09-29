@@ -4,6 +4,10 @@
 # to open on another device; as soon as it does, this pops up a QR code for a
 # page on your phone that opens the link and takes the code back
 # (omarchy-rescue-qr, also on C-Space u).
+#
+# Claude Code is started as-is: its first run signs in by itself, and a
+# separate `claude auth login` beforehand doesn't spare that, so it would ask
+# twice. Codex and OpenCode sign in with their own commands first.
 
 set -euo pipefail
 
@@ -23,7 +27,8 @@ gum style --foreground 4 \
 echo
 
 # Watch for the agent's link, then hand it to the phone. Only a link that
-# wasn't on screen before counts, so an old one can't trigger the popup.
+# wasn't on screen before counts, so an old one can't trigger the popup. Five
+# minutes covers Claude Code's first-run questions before its sign-in link.
 links_on_screen() {
   tmux capture-pane -p -J -S -1000 -t "$TMUX_PANE" | { grep -o 'https\?://' || true; } | wc -l
 }
@@ -31,7 +36,7 @@ if [[ -n ${TMUX_PANE:-} ]]; then
   client=$(tmux display-message -p '#{client_name}')
   before=$(links_on_screen)
   (
-    for _ in $(seq 1 120); do
+    for _ in $(seq 1 600); do
       sleep 0.5
       if (($(links_on_screen) > before)); then
         sleep 0.5 # let the whole link finish printing
@@ -45,7 +50,10 @@ if [[ -n ${TMUX_PANE:-} ]]; then
 fi
 
 case $agent in
-claude) claude auth login ;;
+claude)
+  claude
+  exit
+  ;;
 codex) codex login --device-auth ;;
 opencode) opencode auth login ;;
 *)
