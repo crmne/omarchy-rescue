@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Sign in to an agent from a console with no browser. Each agent prints a link
-# to open on another device: press C-Space u to show it as a QR code, or run
-# omarchy-rescue-share first and finish the whole thing on your phone, where
-# the code the agent asks for can be pasted back.
+# to open on another device; as soon as it does, this pops up a QR code for a
+# page on your phone that opens the link and takes the code back
+# (omarchy-rescue-qr, also on C-Space u).
 
 set -euo pipefail
 
@@ -18,9 +18,31 @@ if ! curl -s -m 5 -o /dev/null https://pkgs.omarchy.org; then
 fi
 
 gum style --foreground 4 \
-  "A sign-in link will appear below. Press C-Space u to show it as a QR code," \
-  "or open this console on your phone with omarchy-rescue-share to paste codes back."
+  "A QR code will pop up when the sign-in link appears. Scan it with your phone" \
+  "to open the link there and send the code back to this console."
 echo
+
+# Watch for the agent's link, then hand it to the phone. Only a link that
+# wasn't on screen before counts, so an old one can't trigger the popup.
+links_on_screen() {
+  tmux capture-pane -p -J -S -1000 -t "$TMUX_PANE" | { grep -o 'https\?://' || true; } | wc -l
+}
+if [[ -n ${TMUX_PANE:-} ]]; then
+  client=$(tmux display-message -p '#{client_name}')
+  before=$(links_on_screen)
+  (
+    for _ in $(seq 1 120); do
+      sleep 0.5
+      if (($(links_on_screen) > before)); then
+        sleep 0.5 # let the whole link finish printing
+        tmux display-popup -c "$client" -E -B -w 100% -h 100% "omarchy-rescue-qr '$TMUX_PANE'"
+        break
+      fi
+    done
+  ) &
+  watcher=$!
+  trap 'kill "$watcher" 2>/dev/null' EXIT
+fi
 
 case $agent in
 claude) claude auth login ;;

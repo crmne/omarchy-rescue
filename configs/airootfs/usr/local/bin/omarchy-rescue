@@ -20,7 +20,7 @@ your disks until you ask it to.
   omarchy-rescue-login    sign in to claude, codex, or opencode
   claude  codex  opencode start an agent and describe what's broken
 
-  C-Space u               show the last link on screen as a QR code
+  C-Space u               open the last link on screen on your phone
   C-Space o               open the menu in a new window
 TEXT
   echo

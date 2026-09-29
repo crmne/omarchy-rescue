@@ -39,23 +39,24 @@ install the way it mounts itself, from its own fstab:
 ### Signing in without a browser
 
 Every agent signs in from the terminal by printing a link to open on another
-device:
+device, and Claude Code and OpenCode then want a long code pasted back.
+`omarchy-rescue-login` handles both: as soon as the agent prints its link, a
+QR code pops up. Scan it with your phone and you get a page that opens the
+sign-in link and has a box to paste the code into. Send it, and the code is
+typed into the console; press Enter there to use it.
 
-- `codex login --device-auth` shows a link and a short code; open it on your
-  phone and you're done.
-- `claude auth login` and `opencode auth login` also want a code pasted back.
+The page lives on this machine, on the local network, behind a random
+address; it serves one paste and stops. Pasted text never includes a newline,
+so nothing runs until you press Enter. **C-Space u** does the same for any
+link on screen.
 
-Two ways to get links onto your phone:
+`omarchy-rescue-share` goes further and serves the whole tmux session to your
+phone's browser with ttyd. It's a root shell behind a random address, so stop
+it with `omarchy-rescue-share stop` when done.
 
-- **C-Space u** shows the last link on screen as a QR code.
-- **`omarchy-rescue-share`** serves this same tmux session to your phone's
-  browser with ttyd and shows a QR code for it. Tap the sign-in link there and
-  paste the code straight back. The address carries a random token and it's a
-  root shell, so stop it with `omarchy-rescue-share stop` when done.
-
-| Codex's device sign-in | C-Space u |
+| The QR code pops up by itself | The page it opens on your phone |
 | --- | --- |
-| ![Codex printing its device sign-in link and code](docs/screenshots/sign-in.png) | ![The sign-in link as a QR code](docs/screenshots/sign-in-qr.png) |
+| ![A QR code for handing the sign-in link to a phone](docs/screenshots/sign-in-qr.png) | ![The phone page: open the link, paste the code back](docs/screenshots/sign-in-phone.png) |
 
 | `omarchy-rescue-share` | `omarchy-rescue` |
 | --- | --- |
