@@ -90,8 +90,10 @@ the rescue entries added in front of the installer. Neither mounts the host's
 pacman cache into the build, so neither needs sudo to wipe it the way upstream
 does.
 
-Pushing a `v*` tag builds the rescue-only ISO in GitHub Actions and publishes
-it as a release with its checksum.
+To release, commit hand-written notes as `packaging/release-notes/vYYYY.MM.DD.md`,
+then push a matching `v*` tag. GitHub Actions builds the rescue-only ISO and
+publishes it with its checksum and those notes; without a notes file it stops
+before building.
 
 To track a newer Omarchy ISO, bump the submodule. `apply-rescue.sh` checks
 every edit it makes and fails the build if an upstream change moved one of its

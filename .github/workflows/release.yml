@@ -23,6 +23,17 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      # Every release is described by hand-written notes committed before the
+      # tag. Stop before building anything if they're missing.
+      - name: Check release notes
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          notes="packaging/release-notes/$GITHUB_REF_NAME.md"
+          if [[ ! -s $notes ]]; then
+            echo "::error::Missing $notes. Commit the release notes, then tag again."
+            exit 1
+          fi
+
       - name: Free disk space
         uses: jlumbroso/free-disk-space@v1.3.1
 
@@ -52,7 +63,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             "${{ steps.iso.outputs.path }}" "${{ steps.iso.outputs.path }}.sha256" \
             --title "Omarchy Rescue $GITHUB_REF_NAME" \
-            --generate-notes
+            --notes-file "packaging/release-notes/$GITHUB_REF_NAME.md"
 
       - name: Keep the ISO as an artifact
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
