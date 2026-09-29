@@ -1,17 +1,24 @@
 #!/bin/bash
 
 # Layer Omarchy Rescue onto an omarchy-iso checkout: the rescue files, the
-# extra packages, and the rescue boot entries. The stock installer stays exactly
-# as it is. Every edit is checked afterwards, so a change upstream that moves
-# one of the anchors fails the build here instead of shipping an ISO with no
-# rescue entry.
+# extra packages, and the rescue boot entries. By default the stock installer
+# stays exactly as it is, alongside rescue. With --rescue-only, its boot entries
+# are dropped too, for the rescue-only ISO (builder/build-rescue-only.sh).
+# Every edit is checked afterwards, so a change upstream that moves one of the
+# anchors fails the build here instead of shipping an ISO with no rescue entry.
 #
-#   builder/apply-rescue.sh <omarchy-iso checkout>
+#   builder/apply-rescue.sh [--rescue-only] <omarchy-iso checkout>
 
 set -euo pipefail
 
+RESCUE_ONLY=
+if [[ ${1:-} == --rescue-only ]]; then
+  RESCUE_ONLY=1
+  shift
+fi
+
 RESCUE_ROOT=$(realpath "${BASH_SOURCE[0]%/*}/..")
-ISO=$(realpath "${1:?usage: apply-rescue.sh <omarchy-iso checkout>}")
+ISO=$(realpath "${1:?usage: apply-rescue.sh [--rescue-only] <omarchy-iso checkout>}")
 CONFIGS=$ISO/configs
 
 RESCUE_ARGS="omarchy.rescue=kms cow_spacesize=50%"
@@ -72,9 +79,16 @@ expect "$script" "grep -qw omarchy.rescue /proc/cmdline && exit 0"
 
 # ISO identity and file modes.
 profile=$CONFIGS/profiledef.sh
+if [[ -n $RESCUE_ONLY ]]; then
+  iso_name=omarchy-rescue
+  iso_application="Omarchy Rescue"
+else
+  iso_name=omarchy-with-rescue
+  iso_application="Omarchy Installer and Rescue"
+fi
 sed -i \
-  -e 's/^iso_name=.*/iso_name="omarchy-rescue"/' \
-  -e 's/^iso_application=.*/iso_application="Omarchy Installer and Rescue"/' \
+  -e "s/^iso_name=.*/iso_name=\"$iso_name\"/" \
+  -e "s/^iso_application=.*/iso_application=\"$iso_application\"/" \
   "$profile"
 {
   echo
@@ -85,16 +99,17 @@ sed -i \
   done
   echo ")"
 } >>"$profile"
-expect "$profile" 'iso_name="omarchy-rescue"'
+expect "$profile" "iso_name=\"$iso_name\""
 expect "$profile" '["/usr/local/bin/omarchy-rescue"]="0:0:755"'
 
 # GRUB (UEFI, and loopback for Ventoy-style boots): add two rescue entries,
 # cloned from the stock Omarchy entry so they boot the same kernel with the
-# same arguments, make rescue the default, and show the menu.
+# same arguments, make rescue the default, and show the menu. Rescue-only drops
+# the installer's own entries.
 add_grub_entries() {
   local cfg=$1
   expect "$cfg" 'menuentry "Omarchy (%ARCH%, ${archiso_platform})"'
-  awk -v rescue="$RESCUE_ARGS" -v basic="$RESCUE_BASIC_ARGS" '
+  awk -v rescue="$RESCUE_ARGS" -v basic="$RESCUE_BASIC_ARGS" -v rescue_only="$RESCUE_ONLY" '
     function emit(title, id, args, drop_splash,   i, line) {
       for (i = 1; i <= n; i++) {
         line = block[i]
@@ -111,13 +126,15 @@ add_grub_entries() {
       print ""
     }
     /^menuentry "Omarchy \(/ && !done { collecting = 1 }
+    rescue_only && /^menuentry "Omarchy with speakup/ { skipping = 1 }
+    skipping { if (/^}/) { skipping = 0; getline } next }
     collecting { block[++n] = $0 }
     !collecting { print }
     collecting && /^}/ {
       collecting = 0; done = 1
       emit("Omarchy Rescue", "omarchy-rescue", rescue, 0)
       emit("Omarchy Rescue, basic console", "omarchy-rescue-basic", basic, 1)
-      for (i = 1; i <= n; i++) print block[i]
+      if (!rescue_only) for (i = 1; i <= n; i++) print block[i]
     }
   ' "$cfg" >"$cfg.new"
   mv "$cfg.new" "$cfg"
@@ -131,11 +148,15 @@ add_grub_entries() {
   expect "$cfg" "$RESCUE_ARGS"
   expect "$cfg" "default=omarchy-rescue"
   expect "$cfg" "timeout=10"
+  if [[ -n $RESCUE_ONLY ]] && grep -q -- "--id 'archlinux" "$cfg"; then
+    fail "installer entries left in ${cfg#"$ISO"/} for a rescue-only ISO"
+  fi
 }
 add_grub_entries "$CONFIGS/grub/grub.cfg"
 add_grub_entries "$CONFIGS/grub/loopback.cfg"
 
-# Syslinux (BIOS): the same two entries ahead of the installer, rescue default.
+# Syslinux (BIOS): the same two entries ahead of the installer (or alone, for
+# rescue-only), rescue default.
 syslinux=$CONFIGS/syslinux/archiso_sys-linux.cfg
 append=$(awk '/^LABEL arch64$/ { found = 1 } found && /^APPEND / { sub(/^APPEND /, ""); print; exit }' "$syslinux")
 [[ -n $append ]] || fail "no APPEND line for LABEL arch64 in ${syslinux#"$ISO"/}"
@@ -159,7 +180,7 @@ $kernel_lines
 APPEND ${append/ quiet splash/} $RESCUE_BASIC_ARGS
 
 CFG
-  cat "$syslinux"
+  [[ -n $RESCUE_ONLY ]] || cat "$syslinux"
 } >"$syslinux.new"
 mv "$syslinux.new" "$syslinux"
 sed -i 's/^DEFAULT arch64$/DEFAULT omarchyrescue/' "$CONFIGS/syslinux/archiso_sys.cfg"

@@ -1,0 +1,60 @@
+name: Release
+
+# Push a tag like v2026.09.29 to build the rescue-only ISO and publish it as a
+# GitHub release. Run it by hand to build without releasing; the ISO is kept as
+# a workflow artifact for a few days.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+
+      - name: Build the ISO
+        run: bin/omarchy-rescue-make
+
+      - name: Checksum and size check
+        id: iso
+        run: |
+          cd release
+          iso=$(ls *.iso)
+          sha256sum "$iso" > "$iso.sha256"
+          size=$(stat -c %s "$iso")
+          echo "$iso is $((size / 1024 / 1024)) MiB"
+          # GitHub rejects release assets of 2 GiB or more.
+          if (( size >= 2 * 1024 * 1024 * 1024 )); then
+            echo "::error::$iso is too big for a GitHub release asset"
+            exit 1
+          fi
+          echo "path=release/$iso" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "${{ steps.iso.outputs.path }}" "${{ steps.iso.outputs.path }}.sha256" \
+            --title "Omarchy Rescue $GITHUB_REF_NAME" \
+            --generate-notes
+
+      - name: Keep the ISO as an artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: omarchy-rescue-iso
+          path: release/*.iso*
+          retention-days: 3
