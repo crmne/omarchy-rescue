@@ -4,6 +4,8 @@ A rescue USB for Omarchy: a live Omarchy console with the rescue tools you'd
 reach for from SystemRescue, and Claude Code, Codex, and OpenCode ready to help
 diagnose and fix a machine that won't boot.
 
+![Omarchy Rescue's welcome screen](docs/screenshots/welcome.png)
+
 Download the ISO from [Releases](https://github.com/crmne/omarchy-rescue/releases),
 check it against its `.sha256`, and write it to a USB stick. It boots into:
 
@@ -29,6 +31,11 @@ claude                  describe what's broken
 omarchy-rescue          a menu of all of the above
 ```
 
+`omarchy-rescue-mount` asks for your disk passphrase and mounts the whole
+install the way it mounts itself, from its own fstab:
+
+![omarchy-rescue-mount unlocking and mounting an encrypted Omarchy install](docs/screenshots/mount.png)
+
 ### Signing in without a browser
 
 Every agent signs in from the terminal by printing a link to open on another
@@ -45,6 +52,14 @@ Two ways to get links onto your phone:
   browser with ttyd and shows a QR code for it. Tap the sign-in link there and
   paste the code straight back. The address carries a random token and it's a
   root shell, so stop it with `omarchy-rescue-share stop` when done.
+
+| Codex's device sign-in | C-Space u |
+| --- | --- |
+| ![Codex printing its device sign-in link and code](docs/screenshots/sign-in.png) | ![The sign-in link as a QR code](docs/screenshots/sign-in-qr.png) |
+
+| `omarchy-rescue-share` | `omarchy-rescue` |
+| --- | --- |
+| ![A QR code for driving the console from a phone](docs/screenshots/share.png) | ![The rescue menu](docs/screenshots/menu.png) |
 
 ### What the agents know
 
