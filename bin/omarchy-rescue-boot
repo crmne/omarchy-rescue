@@ -13,4 +13,13 @@ if [[ $# -eq 0 || $1 == -* ]]; then
   set -- "$iso" "$@"
 fi
 
+# omarchy-iso-boot puts the VM on QEMU's private network, where the address in
+# the sign-in QR code (10.0.2.15) means nothing to a phone. passt gives the VM
+# this machine's own LAN address instead and lets in the two ports the phone
+# uses: the QR handoff page and omarchy-rescue-share. A host firewall still
+# has to allow them (ufw allow 7681:7682/tcp).
+if command -v passt >/dev/null && [[ " $* " != *" --no-network "* && " $* " != *" -- "* ]]; then
+  set -- "$@" --no-network -- -netdev passt,id=net0,tcp-ports=7681-7682 -device virtio-net-pci,netdev=net0
+fi
+
 exec "$ROOT/omarchy-iso/bin/omarchy-iso-boot" "$@"
