@@ -142,3 +142,8 @@ has room for pacman and agent state. That flag:
 - stops the installer wizard from starting on tty1,
 - points pacman at the online repos, so tools can be installed and agents
   updated (`omarchy-rescue update`).
+
+## License
+
+Omarchy Rescue is released under the [MIT License](LICENSE), like Omarchy and
+omarchy-iso. The software on the ISO keeps its own licenses.
