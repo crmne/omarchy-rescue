@@ -3,10 +3,12 @@
 # nvme-cli, fsarchiver, partclone, clonezilla, btrfs-progs, cryptsetup, lvm2,
 # mdadm, parted, gptfdisk, nmap, tcpdump, rsync, tmux, and more).
 
-# Agents
+# Agents. bubblewrap is the sandbox Codex runs commands in: without it, it
+# asks before every command, even to look at a disk.
 claude-code
 openai-codex-bin
 opencode
+bubblewrap
 
 # Console: kmscon for real fonts and truecolor without a desktop, ttyd and
 # qrencode to hand the session to a phone, impala for Wi-Fi over iwd
