@@ -4,6 +4,10 @@ A rescue USB for Omarchy: a live Omarchy console with the rescue tools you'd
 reach for from SystemRescue, and Claude Code, Codex, and OpenCode ready to help
 diagnose and fix a machine that won't boot.
 
+https://github.com/user-attachments/assets/3d764e1b-ad15-4686-975d-beed4420f63f
+
+Music in the film: "Enthusiast" by Tours, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+
 ![Omarchy Rescue's welcome screen](docs/screenshots/welcome.png)
 
 Download the ISO from [Releases](https://github.com/crmne/omarchy-rescue/releases),
