@@ -9,6 +9,12 @@
 # nothing runs until you confirm it at the console. The page stops after one
 # paste, or when this popup is closed.
 #
+# Some sign-ins go the other way: the console shows a short code to enter on
+# the page the link opens (Codex), or to check against the one that page shows
+# (OpenCode, whose link carries it). Then there is nothing to paste back: the
+# popup and the phone page show that code, so nobody approves a sign-in blind,
+# and the popup closes by itself once the agent moves on.
+#
 # Offline, it falls back to a QR code of the link itself.
 
 import html
@@ -19,10 +25,12 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs
 
 URL = re.compile(r"https?://[^\s\"'<>│┃|]+")
+DEVICE_CODE = re.compile(r"\b[A-Z0-9]{4}-[A-Z0-9]{4,6}\b")
 PORT = 7682
 
 
@@ -52,6 +60,17 @@ def pane_text(pane):
     return text
 
 
+def device_code(text, link):
+    """The short code an agent prints next to its link, to enter on the page the
+    link opens or to check against the one shown there."""
+    lines = text.rsplit(link, 1)[-1].splitlines()[:12]
+    for i, line in enumerate(lines):
+        found = DEVICE_CODE.search(line)
+        if found and re.search("code", " ".join(lines[max(0, i - 2) : i + 1]), re.I):
+            return found.group()
+    return None
+
+
 def lan_address():
     route = subprocess.run(["ip", "-4", "route", "get", "1.1.1.1"], capture_output=True, text=True).stdout.split()
     return route[route.index("src") + 1] if "src" in route else None
@@ -71,31 +90,59 @@ def fits(code):
     return width <= columns and len(lines) <= rows, rows - len(lines)
 
 
-PAGE = """<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Omarchy Rescue</title>
-<style>
-  body {{ margin: 0; padding: 24px; background: #1a1b26; color: #c0caf5; font: 17px/1.5 system-ui, sans-serif; }}
-  h1 {{ font-size: 20px; color: #7aa2f7; margin: 0 0 20px; }}
-  a.button, button {{ display: block; box-sizing: border-box; width: 100%; padding: 14px; border: 0; border-radius: 10px;
-    background: #7aa2f7; color: #1a1b26; font: 600 17px system-ui, sans-serif; text-align: center; text-decoration: none; }}
-  textarea {{ box-sizing: border-box; width: 100%; height: 120px; margin: 8px 0 12px; padding: 12px; border-radius: 10px;
-    border: 1px solid #414868; background: #16161e; color: #c0caf5; font: 15px ui-monospace, monospace; }}
-  .step {{ margin: 28px 0 0; color: #a9b1d6; }}
-  .link {{ margin-top: 8px; font: 12px ui-monospace, monospace; color: #565f89; word-break: break-all; }}
-</style></head>
-<body>
-<h1>Omarchy Rescue</h1>
-<p class="step">1. Open the link from the rescue console and sign in.</p>
-<a class="button" href="{link}" target="_blank" rel="noopener">Open link</a>
-<div class="link">{link}</div>
+STYLE = """
+  body { margin: 0; padding: 24px; background: #1a1b26; color: #c0caf5; font: 17px/1.5 system-ui, sans-serif; }
+  h1 { font-size: 20px; color: #7aa2f7; margin: 0 0 20px; }
+  a.button, button { display: block; box-sizing: border-box; width: 100%; padding: 14px; border: 0; border-radius: 10px;
+    background: #7aa2f7; color: #1a1b26; font: 600 17px system-ui, sans-serif; text-align: center; text-decoration: none; }
+  textarea { box-sizing: border-box; width: 100%; height: 120px; margin: 8px 0 12px; padding: 12px; border-radius: 10px;
+    border: 1px solid #414868; background: #16161e; color: #c0caf5; font: 15px ui-monospace, monospace; }
+  .step { margin: 28px 0 0; color: #a9b1d6; }
+  .link { margin-top: 8px; font: 12px ui-monospace, monospace; color: #565f89; word-break: break-all; }
+  .code { margin: 8px 0 0; padding: 14px; border-radius: 10px; border: 1px solid #414868; background: #16161e;
+    color: #9ece6a; font: 600 28px ui-monospace, monospace; text-align: center; letter-spacing: 0.06em;
+    user-select: all; -webkit-user-select: all; }
+"""
+
+OPEN = """<a class="button" href="{link}" target="_blank" rel="noopener">Open link</a>
+<div class="link">{link}</div>"""
+
+# The agent wants a code pasted back (Claude Code).
+PASTE = """<p class="step">1. Open the link from the rescue console and sign in.</p>
+{open}
 <form method="post">
   <p class="step">2. If it gives you a code to paste back, send it here.</p>
   <textarea name="code" placeholder="Paste the code here" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
   <button type="submit">Send to the rescue console</button>
-</form>
-</body></html>
-"""
+</form>"""
+
+# The console shows a code to enter on the page the link opens (Codex).
+ENTER = """<p class="step">1. The sign-in page will ask for this code. Copy it, or keep this page open.</p>
+<div class="code">{code}</div>
+<p class="step">2. Open the link from the rescue console, sign in, and enter the code.</p>
+{open}"""
+
+# The link carries the code, and the page it opens shows it (OpenCode).
+CHECK = """<p class="step">1. The sign-in page will show this code. Approve only if it matches.</p>
+<div class="code">{code}</div>
+<p class="step">2. Open the link from the rescue console and approve the sign-in.</p>
+{open}"""
+
+# A link that signs in by itself, with no code on screen to go with it.
+APPROVE = """<p class="step">Open the link from the rescue console and approve the sign-in. Nothing to paste back.</p>
+{open}"""
+
+
+def page(link, code, pastes):
+    body = PASTE if pastes else APPROVE if not code else CHECK if code in link else ENTER
+    body = body.format(open=OPEN.format(link=html.escape(link, quote=True)), code=html.escape(code or ""))
+    return (
+        '<!doctype html>\n<html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        f"<title>Omarchy Rescue</title>\n<style>{STYLE}</style></head>\n"
+        f"<body>\n<h1>Omarchy Rescue</h1>\n{body}\n</body></html>\n"
+    )
+
 
 DONE = """<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -107,7 +154,7 @@ h1 { font-size: 20px; color: #9ece6a; }</style></head>
 """
 
 
-def serve(link, pane, token):
+def serve(link, pane, token, code, pastes):
     class Handoff(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
@@ -124,19 +171,19 @@ def serve(link, pane, token):
         def do_GET(self):
             if self.path != f"/{token}/":
                 return self.reply(404, "Not found")
-            self.reply(200, PAGE.format(link=html.escape(link, quote=True)))
+            self.reply(200, page(link, code, pastes))
 
         def do_POST(self):
             if self.path != f"/{token}/":
                 return self.reply(404, "Not found")
             length = min(int(self.headers.get("Content-Length") or 0), 65536)
-            code = parse_qs(self.rfile.read(length).decode()).get("code", [""])[0]
+            pasted = parse_qs(self.rfile.read(length).decode()).get("code", [""])[0]
             # Printable characters only: no newline or escape sequence can
             # reach the shell, so the code can't run anything by itself.
-            code = "".join(ch for ch in code if ch.isprintable()).strip()
-            if not code:
-                return self.reply(400, PAGE.format(link=html.escape(link, quote=True)))
-            tmux("send-keys", "-t", pane, "-l", code)
+            pasted = "".join(ch for ch in pasted if ch.isprintable()).strip()
+            if not pastes or not pasted:
+                return self.reply(400, page(link, code, pastes))
+            tmux("send-keys", "-t", pane, "-l", pasted)
             # Sign-in prompts often hide what's typed, so say it arrived.
             tmux("display-message", "-d", "15000", "Code received from your phone. Press Enter to use it.")
             self.reply(200, DONE)
@@ -155,26 +202,60 @@ def main():
         input("\nPress Enter to close.")
         return
 
+    text = pane_text(pane)
     link = links[-1].rstrip(".,;:)]}")
+    code = device_code(text, link)
+    # With a code to enter or to check, nothing comes back.
+    pastes = not code and "user_code=" not in link
+    asks = "Approve only if the sign-in page shows this code:" if code and code in link else "The sign-in page will ask for this code:"
     address = lan_address()
 
     if address:
         token = secrets.token_hex(12)
         try:
-            serve(link, pane, token)
+            serve(link, pane, token, code, pastes)
         except OSError:
             address = None
 
+    if not pastes:
+        # The agent carries on by itself once the phone has signed in: get out
+        # of its way when it prints something new. Lines are counted, not
+        # compared, because a waiting agent keeps redrawing a spinner; and the
+        # count has to hold still for a few seconds first, since the agent may
+        # still be printing its instructions when this popup opens.
+        def lines_on_screen():
+            return sum(1 for line in pane_text(pane).splitlines() if line.strip())
+
+        def close_when_signed_in():
+            settled, quiet = lines_on_screen(), 0
+            while True:
+                time.sleep(1)
+                now = lines_on_screen()
+                if quiet < 3:
+                    quiet = quiet + 1 if now == settled else 0
+                    settled = now
+                elif now > settled:
+                    os._exit(0)
+
+        threading.Thread(target=close_when_signed_in, daemon=True).start()
+
     if address:
-        code = qr(f"http://{address}:{PORT}/{token}/")
-        ok, spare = fits(code)
-        print(code, end="")
-        if spare >= 4:
-            print("\nScan with your phone to open the link there and paste the code back.")
+        image = qr(f"http://{address}:{PORT}/{token}/")
+        ok, spare = fits(image)
+        print(image, end="")
+        if code and spare >= 2:
+            print(f"\n{asks} {code}")
+        if spare >= 5:
+            if pastes:
+                print("\nScan with your phone to open the link there and paste the code back.")
+            else:
+                print("\nScan with your phone to open the sign-in link there.")
             print("Your phone must be on the same network. Press Enter to close.", end="", flush=True)
         input()
         return
 
+    if code:
+        print(f"{asks} {code}\n")
     code = qr(link)
     ok, spare = fits(code)
     if not ok:

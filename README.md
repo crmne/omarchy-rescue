@@ -46,14 +46,18 @@ sign-in link. What happens next depends on the agent:
 - **Claude Code** wants a long code pasted back. The phone page has a box for
   it: send it, and the code is typed into the console; press Enter there to
   use it.
-- **OpenCode** needs nothing more: its link carries the code, so approving it
-  on the phone signs the console in. This is the sign-in for an OpenCode
-  account (Zen); for another provider's API key, run `opencode auth login`.
-- **Codex** works the other way round: the console shows a one-time code that
-  you enter on the page the link opens. Press Enter to close the QR code and
-  read it. Your ChatGPT account has to allow this first: turn on device code
-  sign-in for Codex in ChatGPT's security settings, or the sign-in page
+- **OpenCode** needs nothing pasted: its link carries a short code, and the
+  page it opens shows it. The QR screen and the phone page show the same code,
+  so you can check they match before you approve. This is the sign-in for an
+  OpenCode account (Zen); for another provider's API key, run
+  `opencode auth login`.
+- **Codex** works the other way round: the console has a one-time code that
+  you enter on the page the link opens. It is shown under the QR code and on
+  the phone page. Your ChatGPT account has to allow this first: turn on device
+  code sign-in for Codex in ChatGPT's security settings, or the sign-in page
   refuses the code.
+
+For those two the QR code closes by itself once the agent is signed in.
 
 The page lives on this machine, on the local network, behind a random
 address; it serves one paste and stops. Pasted text never includes a newline,
@@ -86,7 +90,7 @@ anything destructive without a clear yes.
 ```bash
 bin/omarchy-rescue-make                   # rescue-only ISO (~1.8GB), stable channel
 bin/omarchy-rescue-make --with-installer  # the full Omarchy ISO plus rescue (~6.6GB)
-bin/omarchy-rescue-boot                   # boot the newest ISO in QEMU (needs qemu-desktop, edk2-ovmf)
+bin/omarchy-rescue-boot                   # boot the newest ISO in QEMU (needs qemu-desktop, edk2-ovmf; with passt, a phone can reach it)
 ```
 
 `--edge` and `--rc` pick the channel. The ISO lands in `release/`.

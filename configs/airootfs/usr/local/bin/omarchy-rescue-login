@@ -23,7 +23,7 @@ fi
 
 gum style --foreground 4 \
   "A QR code will pop up when the sign-in link appears. Scan it with your phone" \
-  "to open the link there and send the code back to this console."
+  "to sign in there."
 echo
 
 # Watch for the agent's link, then hand it to the phone. Only a link that
