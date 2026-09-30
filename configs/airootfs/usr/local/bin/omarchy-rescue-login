@@ -55,7 +55,16 @@ claude)
   exit
   ;;
 codex) codex login --device-auth ;;
-opencode) opencode auth login ;;
+opencode)
+  # OpenCode's own account signs in with a device link that carries its code.
+  # The command for it changed name between major versions. `opencode auth
+  # login` alone is for other providers' API keys.
+  if [[ $(opencode --version 2>/dev/null) == 1.* ]]; then
+    opencode console login
+  else
+    opencode auth login opencode
+  fi
+  ;;
 *)
   echo "Unknown agent: $agent (expected claude, codex, or opencode)" >&2
   exit 1

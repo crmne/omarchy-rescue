@@ -39,11 +39,21 @@ install the way it mounts itself, from its own fstab:
 ### Signing in without a browser
 
 Every agent signs in from the terminal by printing a link to open on another
-device, and Claude Code and OpenCode then want a long code pasted back.
-`omarchy-rescue-login` handles both: as soon as the agent prints its link, a
-QR code pops up. Scan it with your phone and you get a page that opens the
-sign-in link and has a box to paste the code into. Send it, and the code is
-typed into the console; press Enter there to use it.
+device. `omarchy-rescue-login` hands that link to your phone: as soon as the
+agent prints it, a QR code pops up. Scan it and you get a page that opens the
+sign-in link. What happens next depends on the agent:
+
+- **Claude Code** wants a long code pasted back. The phone page has a box for
+  it: send it, and the code is typed into the console; press Enter there to
+  use it.
+- **OpenCode** needs nothing more: its link carries the code, so approving it
+  on the phone signs the console in. This is the sign-in for an OpenCode
+  account (Zen); for another provider's API key, run `opencode auth login`.
+- **Codex** works the other way round: the console shows a one-time code that
+  you enter on the page the link opens. Press Enter to close the QR code and
+  read it. Your ChatGPT account has to allow this first: turn on device code
+  sign-in for Codex in ChatGPT's security settings, or the sign-in page
+  refuses the code.
 
 The page lives on this machine, on the local network, behind a random
 address; it serves one paste and stops. Pasted text never includes a newline,
