@@ -54,6 +54,7 @@ front of the untouched installer; see [Building](#building).
 Boot the rescue entry and you land in a tmux session running Omarchy's shell.
 
 ```
+omarchy-rescue-keyboard change the keyboard layout (it starts as US)
 impala                  connect to Wi-Fi (Ethernet just works)
 omarchy-rescue-login    sign in to claude, codex, or opencode
 omarchy-rescue-mount    unlock and mount your Omarchy install at /mnt
@@ -61,6 +62,10 @@ arch-chroot /mnt        run commands inside it
 claude                  describe what's broken
 omarchy-rescue          a menu of all of the above
 ```
+
+`omarchy-rescue-keyboard` with no arguments lets you pick a layout from a
+list; `omarchy-rescue-keyboard de` (or `fr`, `it`, `gb`, ...) sets one
+directly. The console restarts with it and your session carries on.
 
 `omarchy-rescue-mount` asks for your disk passphrase and mounts the whole
 install the way it mounts itself, from its own fstab:

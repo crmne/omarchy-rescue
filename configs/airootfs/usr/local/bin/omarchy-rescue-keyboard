@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Change the console's keyboard layout. The rescue console starts with a US
+# layout; this switches it to another XKB layout and restarts the console with
+# it. The tmux session, and everything running in it, carries on.
+#
+#   omarchy-rescue-keyboard                    pick a layout from a list
+#   omarchy-rescue-keyboard de                 a layout by name
+#   omarchy-rescue-keyboard de nodeadkeys      a layout and one of its variants
+
+set -euo pipefail
+
+conf=/etc/kmscon/kmscon.conf
+layout=${1:-}
+variant=${2:-}
+
+if [[ -z $layout ]]; then
+  layout=$(localectl list-x11-keymap-layouts | gum filter --placeholder "Keyboard layout: de, fr, it, gb, es, ...") || exit 0
+fi
+
+if ! localectl list-x11-keymap-layouts | grep -qx -- "$layout"; then
+  echo "Unknown keyboard layout: $layout (localectl list-x11-keymap-layouts lists them)" >&2
+  exit 1
+fi
+if [[ -n $variant ]] && ! localectl list-x11-keymap-variants "$layout" | grep -qx -- "$variant"; then
+  echo "Unknown variant of $layout: $variant (localectl list-x11-keymap-variants $layout lists them)" >&2
+  exit 1
+fi
+
+sed -i '/^xkb-layout=/d; /^xkb-variant=/d' "$conf"
+echo "xkb-layout=$layout" >>"$conf"
+[[ -n $variant ]] && echo "xkb-variant=$variant" >>"$conf"
+
+# The basic console uses the kernel's keymaps, which mostly share the layout's
+# name. Where one doesn't exist, that console stays as it is.
+loadkeys "$layout" &>/dev/null || true
+
+if systemctl is-active --quiet omarchy-rescue-console; then
+  gum style --foreground 4 "Switching the console to ${layout}${variant:+ ($variant)}..."
+  sleep 1
+  systemctl restart omarchy-rescue-console
+fi
