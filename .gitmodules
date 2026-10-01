@@ -1,3 +1,4 @@
 [submodule "omarchy-iso"]
 	path = omarchy-iso
 	url = https://github.com/omacom/omarchy-iso.git
+	branch = quattro
