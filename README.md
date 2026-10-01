@@ -147,9 +147,10 @@ pacman cache into the build, so neither needs sudo to wipe it the way upstream
 does.
 
 To release, commit hand-written notes as `packaging/release-notes/vYYYY.MM.DD.md`,
-then push a matching `v*` tag. GitHub Actions builds the rescue-only ISO and
-publishes it with its checksum and those notes; without a notes file it stops
-before building.
+then push a matching `v*` tag. GitHub Actions builds the rescue-only ISO, boots
+it with `test/boot-smoke.py`, and publishes it with its checksum and those
+notes; without a notes file it stops before building, and an ISO that fails the
+smoke test is not published.
 
 To track a newer Omarchy ISO, bump the submodule. `apply-rescue.sh` checks
 every edit it makes and fails the build if an upstream change moved one of its

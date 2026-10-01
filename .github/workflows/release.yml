@@ -40,6 +40,17 @@ jobs:
       - name: Build the ISO
         run: bin/omarchy-rescue-make
 
+      # Nothing gets published that doesn't boot to a working rescue console.
+      - name: Boot it and check the rescue console and the agents
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-system-x86 ovmf >/dev/null
+          # Let the runner user use KVM, or the boot runs unaccelerated.
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test/boot-smoke.py release/*.iso
+
       - name: Checksum and size check
         id: iso
         run: |
