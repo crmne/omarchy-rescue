@@ -22,9 +22,21 @@ caligula burn omarchy-rescue-*.iso -s "$(cut -d' ' -f1 omarchy-rescue-*.iso.sha2
 ```
 
 It checks the download against its checksum, asks which drive to write to, and
-erases everything on it. Then boot the broken machine from the stick, usually
-by picking it in the boot menu at power-on (F12, F11, or Esc, depending on the
-machine).
+erases everything on it.
+
+On **macOS** or **Windows**, check the download first, then write it with
+[balenaEtcher](https://etcher.balena.io): pick the ISO, pick the stick, flash.
+
+```bash
+shasum -a 256 -c omarchy-rescue-*.iso.sha256                # macOS
+certutil -hashfile omarchy-rescue-<version>-x86_64.iso SHA256  # Windows: compare with the .sha256 file
+```
+
+On Windows, [Rufus](https://rufus.ie) works too: when it asks how to write the
+image, choose DD image mode.
+
+Then boot the broken machine from the stick, usually by picking it in the boot
+menu at power-on (F12, F11, or Esc, depending on the machine).
 
 It boots into:
 
