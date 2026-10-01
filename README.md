@@ -132,6 +132,7 @@ anything destructive without a clear yes.
 bin/omarchy-rescue-make                   # rescue-only ISO (~1.8GB), stable channel
 bin/omarchy-rescue-make --with-installer  # the full Omarchy ISO plus rescue (~6.6GB)
 bin/omarchy-rescue-boot                   # boot the newest ISO in QEMU (needs qemu-desktop, edk2-ovmf; with passt, a phone can reach it)
+test/boot-smoke.py                        # boot the newest ISO headless and check the console and the agents
 ```
 
 `--edge` and `--rc` pick the channel. The ISO lands in `release/`.
@@ -153,6 +154,12 @@ before building.
 To track a newer Omarchy ISO, bump the submodule. `apply-rescue.sh` checks
 every edit it makes and fails the build if an upstream change moved one of its
 anchors.
+
+A scheduled workflow does that on the 1st and 15th of every month: it moves
+`omarchy-iso` to its newest commit, builds the ISO from that day's packages,
+and boots it with `test/boot-smoke.py`. If anything fails, the run fails. If it
+all passes and `omarchy-iso` moved, it opens a pull request with the update and
+the tested ISO attached to the run. Releasing stays manual.
 
 ## Layout
 

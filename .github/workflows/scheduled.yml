@@ -1,0 +1,98 @@
+name: Scheduled build
+
+# Twice a month, and by hand: move omarchy-iso to its newest commit, build the
+# ISO from today's packages, and boot it to check that the rescue console comes
+# up and the agents start. A failure fails the run, and GitHub emails about
+# it. When everything passes and omarchy-iso moved, it opens a pull request
+# with the update; releasing stays a person's job, with hand-written notes.
+
+on:
+  schedule:
+    - cron: "0 6 1,15 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Full history: the build clones archiso using this checkout's copy as a
+      # reference, and git refuses a shallow reference repository.
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Move omarchy-iso to its newest commit
+        id: upstream
+        run: |
+          old=$(git -C omarchy-iso rev-parse HEAD)
+          git submodule update --remote omarchy-iso
+          new=$(git -C omarchy-iso rev-parse HEAD)
+          # Stage it, or the build's own submodule update puts it back, and
+          # check out omarchy-iso's archiso at the commit omarchy-iso pins.
+          git add omarchy-iso
+          git -C omarchy-iso submodule update --init --recursive
+          echo "old=$old" >> "$GITHUB_OUTPUT"
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+          if [[ $old == "$new" ]]; then
+            echo "omarchy-iso is up to date at ${new:0:7}."
+          else
+            echo "omarchy-iso moves from ${old:0:7} to ${new:0:7}:"
+            git -C omarchy-iso log --oneline "$old..$new"
+          fi
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+
+      - name: Build the ISO
+        run: bin/omarchy-rescue-make
+
+      - name: Boot it and check the rescue console and the agents
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-system-x86 ovmf >/dev/null
+          # Let the runner user use KVM, or the boot runs unaccelerated.
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test/boot-smoke.py release/*.iso
+
+      - name: Keep the ISO for a week
+        uses: actions/upload-artifact@v4
+        with:
+          name: omarchy-rescue-iso
+          path: release/*.iso
+          retention-days: 7
+
+      - name: Open a pull request with the omarchy-iso update
+        if: steps.upstream.outputs.old != steps.upstream.outputs.new
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OLD: ${{ steps.upstream.outputs.old }}
+          NEW: ${{ steps.upstream.outputs.new }}
+        run: |
+          branch="update-omarchy-iso-${NEW:0:7}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "A pull request for ${NEW:0:7} is already open."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -m "Update omarchy-iso to ${NEW:0:7}"
+          git push origin "$branch"
+          {
+            echo "omarchy-iso moves from \`${OLD:0:7}\` to \`${NEW:0:7}\`:"
+            echo
+            git -C omarchy-iso log --format='- %s (%h)' "$OLD..$NEW"
+            echo
+            echo "The ISO built from it booted and passed the smoke test (the rescue console is up; claude, codex and opencode start; the rescue helpers are installed)."
+            echo "Download it from this run's artifacts to try it: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo "Merging doesn't release anything. To release, commit hand-written notes and push a tag."
+          } > body.md
+          gh pr create --title "Update omarchy-iso to ${NEW:0:7}" --body-file body.md --head "$branch"
