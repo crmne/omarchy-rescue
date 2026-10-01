@@ -23,6 +23,7 @@ your disks until you ask it to.
 
   C-Space u               open the last link on screen on your phone
   C-Space o               open the menu in a new window
+  C-Space ?               list every key binding
 TEXT
   echo
 }

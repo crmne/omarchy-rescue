@@ -67,6 +67,11 @@ omarchy-rescue          a menu of all of the above
 list; `omarchy-rescue-keyboard de` (or `fr`, `it`, `gb`, ...) sets one
 directly. The console restarts with it and your session carries on.
 
+The prefix key is **C-Space**, as in Omarchy. **C-Space ?** lists every key
+binding:
+
+![The key binding list](docs/screenshots/keybindings.png)
+
 `omarchy-rescue-mount` asks for your disk passphrase and mounts the whole
 install the way it mounts itself, from its own fstab:
 
