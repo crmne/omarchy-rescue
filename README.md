@@ -10,8 +10,23 @@ Music in the film: "Enthusiast" by Tours, [CC BY 3.0](https://creativecommons.or
 
 ![Omarchy Rescue's welcome screen](docs/screenshots/welcome.png)
 
-Download the ISO from [Releases](https://github.com/crmne/omarchy-rescue/releases),
-check it against its `.sha256`, and write it to a USB stick. It boots into:
+## Put it on a USB stick
+
+Download the ISO and its `.sha256` from
+[Releases](https://github.com/crmne/omarchy-rescue/releases), then write it
+with [Caligula](https://github.com/ifd3f/caligula) (`sudo pacman -S caligula`
+on Omarchy and Arch):
+
+```bash
+caligula burn omarchy-rescue-*.iso -s "$(cut -d' ' -f1 omarchy-rescue-*.iso.sha256)"
+```
+
+It checks the download against its checksum, asks which drive to write to, and
+erases everything on it. Then boot the broken machine from the stick, usually
+by picking it in the boot menu at power-on (F12, F11, or Esc, depending on the
+machine).
+
+It boots into:
 
 - **Omarchy Rescue** (default): a kmscon console on tty1 with JetBrains Mono,
   truecolor, and the Tokyo Night palette, no desktop needed.
