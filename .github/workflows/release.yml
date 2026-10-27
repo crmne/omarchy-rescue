@@ -18,7 +18,7 @@ jobs:
     steps:
       # Full history: the build clones archiso using this checkout's copy as a
       # reference, and git refuses a shallow reference repository.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0
