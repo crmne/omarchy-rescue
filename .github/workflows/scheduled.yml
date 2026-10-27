@@ -62,7 +62,7 @@ jobs:
           test/boot-smoke.py release/*.iso
 
       - name: Keep the ISO for a week
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: omarchy-rescue-iso
           path: release/*.iso
